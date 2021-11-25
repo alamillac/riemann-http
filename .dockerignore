@@ -1,0 +1,8 @@
+temp_*.*
+.git/*
+.idea
+.coverage*
+.git*
+.dockerignore
+README.md
+**/__pycache__
