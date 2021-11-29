@@ -23,7 +23,7 @@ var (
 type Metric struct {
 	Service     string            `json:"service" validate:"required"`
 	Description string            `json:"description" validate:"required"`
-	Metric      int64             `json:"metric" validate:"required"`
+	Metric      *int64            `json:"metric" validate:"required"`
 	State       MetricState       `json:"state" validate:"required"`
 	Host        string            `json:"host" validate:"required"`
 	Tags        []string          `json:"tags,omitempty"`
@@ -32,19 +32,20 @@ type Metric struct {
 }
 
 func (m *Metric) Send() error {
-	c, err := connect(address)
+	c, err := connect(address) //TODO move
 
 	if err != nil {
 		return err
 	}
 
 	e := &riemann.Event{
-		Host:        m.Host,
 		Service:     m.Service,
+		Description: m.Description,
 		Metric:      m.Metric,
+		State:       string(m.State),
+		Host:        m.Host,
 		Tags:        m.Tags,
 		TTL:         time.Duration(m.TTL) * time.Second,
-		Description: m.Description,
 		Attributes:  m.Attributes,
 	}
 	riemann.SendEvent(c, e)
