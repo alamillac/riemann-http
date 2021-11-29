@@ -41,7 +41,7 @@ func (m *Metric) Send() error {
 	e := &riemann.Event{
 		Service:     m.Service,
 		Description: m.Description,
-		Metric:      m.Metric,
+		Metric:      *m.Metric,
 		State:       string(m.State),
 		Host:        m.Host,
 		Tags:        m.Tags,
