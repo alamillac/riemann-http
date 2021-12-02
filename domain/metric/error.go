@@ -1,4 +1,4 @@
-package app
+package metric
 
 import (
 	"net/http"

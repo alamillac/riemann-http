@@ -1,9 +1,9 @@
 package metric
 
 import (
-	"time"
+	"net/http"
 
-	riemann "github.com/riemann/riemann-go-client"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 type MetricState string
@@ -13,11 +13,6 @@ const (
 	MetricWarning  = MetricState("warning")
 	MetricError    = MetricState("error")
 	MetricCritical = MetricState("critical")
-)
-
-var (
-	connectTimeout = 10 * time.Second
-	address        = "127.0.0.1:5555"
 )
 
 type Metric struct {
@@ -31,35 +26,15 @@ type Metric struct {
 	Attributes  map[string]string `json:"attributes,omitempty"`
 }
 
-func (m *Metric) Send() error {
-	c, err := connect(address) //TODO move
-
-	if err != nil {
-		return err
-	}
-
-	e := &riemann.Event{
-		Service:     m.Service,
-		Description: m.Description,
-		Metric:      *m.Metric,
-		State:       string(m.State),
-		Host:        m.Host,
-		Tags:        m.Tags,
-		TTL:         time.Duration(m.TTL) * time.Second,
-		Attributes:  m.Attributes,
-	}
-	riemann.SendEvent(c, e)
-
-	return err
+type MetricPayload struct {
+	*Metric
 }
 
-func connect(address string) (*riemann.TCPClient, error) {
-	c := riemann.NewTCPClient(address, connectTimeout)
-	err := c.Connect()
+func (mp *MetricPayload) Render(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
 
-	if err != nil {
-		return nil, err
-	}
-
-	return c, nil
+func (mp *MetricPayload) Bind(r *http.Request) error {
+	v := validator.New()
+	return v.Struct(mp)
 }
