@@ -5,14 +5,14 @@ PASSWORD=$2
 for i in {1..1000}
 do
   data='{
-      "service": "api.response_time",
+      "service": "core_api.response_time",
       "description": "Example metric",
       "metric": '$(( $RANDOM % 10 ))',
       "host": "www.example.com",
       "ttl": 60,
       "state": "ok",
       "attributes": {
-        "ip": "152.206.232.215",
+        "ip": "152.207.243.130",
         "statusCode": "200",
         "method": "POST",
         "url": "/api/countries",

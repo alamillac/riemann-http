@@ -1,6 +1,6 @@
 package apiserver
 
 type ApiConfig interface {
-	GetApiCredential() map[string]string
-	GetApiPort() int
+  GetApiCredential() map[string]string
+  GetApiPort() int
 }
