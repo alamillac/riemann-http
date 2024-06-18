@@ -14,11 +14,13 @@ import (
 
   "riemannhttp/domain/metric"
   "riemannhttp/domain/asn"
+  "riemannhttp/domain/cerberus"
 )
 
 type Server struct {
   app *chi.Mux
   cfg ApiConfig
+  guardian *cerberus.Cerberus
 }
 
 func NewServer(rc *riemann.TCPClient, redisClient *redis.Client, cfg ApiConfig) *Server {
@@ -32,7 +34,8 @@ func NewServer(rc *riemann.TCPClient, redisClient *redis.Client, cfg ApiConfig) 
   asnHttp := asn.NewHTTP(asnSvc)
   app.Get("/asn", asnHttp.Get)
 
-  metricSvc := metric.NewService(rc, asnSvc)
+  guardian := cerberus.NewCerberus()
+  metricSvc := metric.NewService(rc, asnSvc, guardian)
   metricHttp := metric.NewHTTP(metricSvc)
   app.Post("/metric", metricHttp.Create)
 
@@ -41,10 +44,12 @@ func NewServer(rc *riemann.TCPClient, redisClient *redis.Client, cfg ApiConfig) 
   return &Server{
     app: app,
     cfg: cfg,
+    guardian: guardian,
   }
 }
 
 func (s Server) Run() error {
   httpPort := s.cfg.GetApiPort()
+  s.guardian.Start()
   return http.ListenAndServe(fmt.Sprintf(":%d", httpPort), s.app)
 }
