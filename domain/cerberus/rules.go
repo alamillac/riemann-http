@@ -1,6 +1,6 @@
 package cerberus
 
-import "fmt"
+import "log"
 
 type Rule struct {
 	numMinRequests       uint16
@@ -9,17 +9,20 @@ type Rule struct {
 }
 
 func (r Rule) Handle(name string, ip string, total uint32, loginOk uint32, loginError uint32) {
+	if total == 0 || loginError == 0 {
+		return
+	}
 	if total < uint32(r.numMinRequests) {
 		return
 	}
-	if float32(loginOk)/float32(total) < r.minRateLoginReq {
+	loginTotal := loginOk + loginError
+	if float32(loginTotal)/float32(total) < r.minRateLoginReq {
 		return
 	}
-	loginTotal := loginOk + loginError
 	if float32(loginError)/float32(loginTotal) < r.minRateLoginErrorReq {
 		return
 	}
-  fmt.Printf("Rule triggered for %s %s Req: %d Login Req: %d Login Errors: %d\n", name, ip, total, loginTotal, loginError)
+	log.Printf("Rule triggered for %s %s Req: %d Login Req: %d Login Errors: %d\n", name, ip, total, loginTotal, loginError)
 }
 
 func NewRule(numMinRequests uint16, minRateLoginReq float32, minRateLoginErrorReq float32) Rule {

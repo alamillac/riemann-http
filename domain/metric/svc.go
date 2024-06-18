@@ -87,7 +87,7 @@ func (s *svc) Analyze(m *MetricPayload) error {
 func (s *svc) Send(m *MetricPayload) error {
 	atts := s.GetAttributes(m)
 	if err := s.Analyze(m); err != nil {
-		log.Println(err)
+		log.Printf("Error in analyze %s", err)
 	}
 
 	e := &riemann.Event{
