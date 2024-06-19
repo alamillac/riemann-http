@@ -1,7 +1,7 @@
 package cerberus
 
 import (
-	"fmt"
+	"log"
 	"sync"
 	"time"
 )
@@ -36,7 +36,7 @@ type Memory struct {
 }
 
 func (m *Memory) Display() {
-	fmt.Printf("%s: %d\n", m.name, len(m.ipMap))
+	log.Printf("%s: %d\n", m.name, len(m.ipMap))
 }
 
 func (m *Memory) Inc(ip string, isLogin bool, isUnauthorized bool) {
