@@ -7,7 +7,7 @@ import (
 )
 
 type Consumer interface {
-	Handle(name string, ip string, reqOk uint32, reqError uint32, loginOk uint32, loginError uint32)
+	Handle(name string, ip string, reqOk uint32, reqError uint32, lastError int64, loginOk uint32, loginError uint32, lastLoginError int64)
 }
 
 type IpMap struct {
@@ -19,6 +19,8 @@ type IpMap struct {
 	LoginErrorWindow []uint16
 	TotalOkWindow    []uint16
 	TotalErrorWindow []uint16
+	LastError        int64
+	LastLoginError   int64
 }
 
 type Memory struct {
@@ -93,17 +95,20 @@ func (m *Memory) incOk(ip string) {
 }
 
 func (m *Memory) incError(ip string) {
+	now := time.Now().Unix()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if ipMap, ok := m.ipMap[ip]; ok {
 		ipMap.TotalError += 1
 		ipMap.TotalErrorWindow[m.index] += 1
+		ipMap.LastError = now
 	} else {
 		ipMap := IpMap{
 			LoginOk:          0,
 			LoginError:       0,
 			TotalOk:          0,
 			TotalError:       1,
+			LastError:        now,
 			LoginOkWindow:    make([]uint16, m.size),
 			LoginErrorWindow: make([]uint16, m.size),
 			TotalOkWindow:    make([]uint16, m.size),
@@ -140,6 +145,7 @@ func (m *Memory) incLoginOk(ip string) {
 }
 
 func (m *Memory) incLoginError(ip string) {
+	now := time.Now().Unix()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if ipMap, ok := m.ipMap[ip]; ok {
@@ -147,12 +153,16 @@ func (m *Memory) incLoginError(ip string) {
 		ipMap.LoginError += 1
 		ipMap.TotalErrorWindow[m.index] += 1
 		ipMap.LoginErrorWindow[m.index] += 1
+		ipMap.LastError = now
+		ipMap.LastLoginError = now
 	} else {
 		ipMap := IpMap{
 			LoginOk:          0,
 			LoginError:       1,
 			TotalOk:          0,
 			TotalError:       1,
+			LastError:        now,
+			LastLoginError:   now,
 			LoginOkWindow:    make([]uint16, m.size),
 			LoginErrorWindow: make([]uint16, m.size),
 			TotalOkWindow:    make([]uint16, m.size),
@@ -170,7 +180,7 @@ func (m *Memory) step() {
 	m.index = (m.index + 1) % m.size
 	for ip, ipMap := range m.ipMap {
 		// Call consumer
-		m.consumer.Handle(m.name, ip, ipMap.TotalOk, ipMap.TotalError, ipMap.LoginOk, ipMap.LoginError)
+		m.consumer.Handle(m.name, ip, ipMap.TotalOk, ipMap.TotalError, ipMap.LastError, ipMap.LoginOk, ipMap.LoginError, ipMap.LastLoginError)
 
 		// Remove oldest values
 		ipMap.TotalOk -= uint32(ipMap.TotalOkWindow[m.index])       // remove the oldest value

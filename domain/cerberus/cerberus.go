@@ -28,9 +28,9 @@ func (c Cerberus) Start() {
 }
 
 func NewCerberus() *Cerberus {
-	ipRule := NewLoginRule(5, 0.9, 0.9)                              // Min 5 requests, 90% of login requests, 90% of login errors
+	ipRule := NewLoginRule(5, 0.9, 0.9)                         // Min 5 requests, 90% of login requests, 90% of login errors
 	ipMetrics := NewMemory("ip", 5, 600, ipRule)                // 10 minutes window (600 seconds) with tick every 5 seconds
-	asnRule := NewTotalRule(12, 0.8)                              // Min 12 requests, 80% of errors
+	asnRule := NewTotalRule(12, 0.8)                            // Min 12 requests, 80% of errors
 	asnMetricsHighFreq := NewMemory("asn high", 1, 30, asnRule) // 30 seconds window with tick every 1 second
 	asnMetricsLowFreq := NewMemory("asn low", 5, 300, asnRule)  // 5 minutes window (300 seconds) with tick every 5 seconds
 
