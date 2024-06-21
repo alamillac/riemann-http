@@ -34,7 +34,7 @@ func NewServer(rc *riemann.TCPClient, redisClient *redis.Client, cfg ApiConfig) 
   asnHttp := asn.NewHTTP(asnSvc)
   app.Get("/asn", asnHttp.Get)
 
-  guardian := cerberus.NewCerberus()
+  guardian := cerberus.NewCerberus(rc)
   metricSvc := metric.NewService(rc, asnSvc, guardian)
   metricHttp := metric.NewHTTP(metricSvc)
   app.Post("/metric", metricHttp.Create)
