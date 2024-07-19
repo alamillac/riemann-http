@@ -1,5 +1,7 @@
 package cerberus
 
+import "log"
+
 type RuleType int
 
 const (
@@ -76,8 +78,10 @@ func (c Cerberus) Start() {
 }
 
 func NewCerberus(options *Options) *Cerberus {
+	log.Printf("%d Rules found\n", len(options.Rules))
 	rules := make([]*Rule, len(options.Rules))
-	for _, ruleOption := range options.Rules {
+	for i, ruleOption := range options.Rules {
+		log.Printf("Added rule %s\n", ruleOption.Name)
 		trigger := ruleOption.Trigger.NewTrigger()
 		window := NewWindow(ruleOption.Name, ruleOption.Window.Tick, ruleOption.Window.Size, trigger)
 		rule := &Rule{
@@ -85,7 +89,7 @@ func NewCerberus(options *Options) *Cerberus {
 			Window:  window,
 			Ignored: ruleOption.Ignored,
 		}
-		rules = append(rules, rule)
+		rules[i] = rule
 	}
 
 	return &Cerberus{rules: rules}
