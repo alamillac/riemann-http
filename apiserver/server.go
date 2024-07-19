@@ -23,7 +23,7 @@ type Server struct {
   guardian *cerberus.Cerberus
 }
 
-func NewServer(rc *riemann.TCPClient, redisClient *redis.Client, cfg ApiConfig) *Server {
+func NewServer(rc *riemann.TCPClient, guardian *cerberus.Cerberus, redisClient *redis.Client, cfg ApiConfig) *Server {
   creds := cfg.GetApiCredential()
   app := chi.NewRouter()
   app.Use(middleware.Logger)
@@ -34,7 +34,6 @@ func NewServer(rc *riemann.TCPClient, redisClient *redis.Client, cfg ApiConfig) 
   asnHttp := asn.NewHTTP(asnSvc)
   app.Get("/asn", asnHttp.Get)
 
-  guardian := cerberus.NewCerberus(rc)
   metricSvc := metric.NewService(rc, asnSvc, guardian)
   metricHttp := metric.NewHTTP(metricSvc)
   app.Post("/metric", metricHttp.Create)

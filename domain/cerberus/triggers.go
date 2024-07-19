@@ -6,46 +6,25 @@ import (
 	"time"
 
 	"github.com/patrickmn/go-cache"
-	riemann "github.com/riemann/riemann-go-client"
 )
 
-func sendAlert(rc *riemann.TCPClient, ip, name string) error {
-	atts := make(map[string]string)
-	atts["ip-asn"] = ip
-	atts["name"] = name
-	e := &riemann.Event{
-		Service:     "cerberus.alert",
-		Description: "",
-		Metric:      1,
-		State:       "error",
-		Host:        "cerberus",
-		TTL:         time.Duration(1) * time.Minute,
-		Attributes:  atts,
-	}
-	if _, err := riemann.SendEvent(rc, e); err == nil {
-		return nil
-	}
-
-	// If fail to send event retry the connection
-	if err := rc.Connect(); err != nil {
-		return err
-	}
-
-	if _, err := riemann.SendEvent(rc, e); err != nil {
-		return err
-	}
-	return nil
+type Trigger interface {
+	Handle(name string, ip string, reqOk uint32, reqError uint32, lastError int64, loginOk uint32, loginError uint32, lastLoginError int64)
 }
 
-type LoginRule struct {
+type Action interface {
+	Send(name string, ip string) error
+}
+
+type LoginTrigger struct {
 	numMinRequests       uint16
 	minRateLoginReq      float32
 	minRateLoginErrorReq float32
 	cache                *cache.Cache
-	client               *riemann.TCPClient
+	action               Action
 }
 
-func (r LoginRule) Handle(name string, ip string, reqOk uint32, reqError uint32, lastError int64, loginOk uint32, loginError uint32, lastLoginError int64) {
+func (r *LoginTrigger) Handle(name string, ip string, reqOk uint32, reqError uint32, lastError int64, loginOk uint32, loginError uint32, lastLoginError int64) {
 	total := reqOk + reqError
 	if total == 0 || loginError == 0 {
 		return
@@ -70,32 +49,39 @@ func (r LoginRule) Handle(name string, ip string, reqOk uint32, reqError uint32,
 	}
 
 	log.Printf("Rule triggered for %s %s Req: %d Login Req: %d Login Errors: %d\n", name, ip, total, loginTotal, loginError)
-	if err := sendAlert(r.client, ip, name); err == nil {
+	if err := r.action.Send(name, ip); err == nil {
 		r.cache.Set(key, lastLoginError, cache.DefaultExpiration)
 	}
 }
 
-func NewLoginRule(numMinRequests uint16, minRateLoginReq float32, minRateLoginErrorReq float32, rc *riemann.TCPClient) LoginRule {
+type LoginTriggerOpts struct {
+	MinRequests       uint16
+	MinRateLogin      float32
+	MinRateLoginError float32
+	Action            Action
+}
+
+func (o LoginTriggerOpts) NewTrigger() Trigger {
 	// Create a cache with a default expiration time of 10 minutes, and which
 	// purges expired items every 10 minutes
 	c := cache.New(10*time.Minute, 10*time.Minute)
-	return LoginRule{
+	return &LoginTrigger{
 		cache:                c,
-		numMinRequests:       numMinRequests,
-		minRateLoginReq:      minRateLoginReq,
-		minRateLoginErrorReq: minRateLoginErrorReq,
-		client:               rc,
+		numMinRequests:       o.MinRequests,
+		minRateLoginReq:      o.MinRateLoginError,
+		minRateLoginErrorReq: o.MinRateLoginError,
+		action:               o.Action,
 	}
 }
 
-type TotalRule struct {
+type RateTrigger struct {
 	numMinRequests  uint16
 	minRateErrorReq float32
 	cache           *cache.Cache
-	client          *riemann.TCPClient
+	action          Action
 }
 
-func (r TotalRule) Handle(name string, ip string, reqOk uint32, reqError uint32, lastError int64, loginOk uint32, loginError uint32, lastLoginError int64) {
+func (r *RateTrigger) Handle(name string, ip string, reqOk uint32, reqError uint32, lastError int64, loginOk uint32, loginError uint32, lastLoginError int64) {
 	total := reqOk + reqError
 	if total == 0 || reqError == 0 {
 		return
@@ -116,17 +102,25 @@ func (r TotalRule) Handle(name string, ip string, reqOk uint32, reqError uint32,
 	}
 
 	log.Printf("Rule triggered for %s %s Req: %d Errors: %d\n", name, ip, total, reqError)
-	if err := sendAlert(r.client, ip, name); err == nil {
+	if err := r.action.Send(name, ip); err == nil {
 		r.cache.Set(key, lastError, cache.DefaultExpiration)
 	}
 }
 
-func NewTotalRule(numMinRequests uint16, minRateErrorReq float32, rc *riemann.TCPClient) TotalRule {
+type RateTriggerOpts struct {
+	MinRequests  uint16
+	MinRateError float32
+	Action       Action
+}
+
+func (o RateTriggerOpts) NewTrigger() Trigger {
+	// Create a cache with a default expiration time of 10 minutes, and which
+	// purges expired items every 10 minutes
 	c := cache.New(10*time.Minute, 10*time.Minute)
-	return TotalRule{
+	return &RateTrigger{
 		cache:           c,
-		numMinRequests:  numMinRequests,
-		minRateErrorReq: minRateErrorReq,
-		client:          rc,
+		numMinRequests:  o.MinRequests,
+		minRateErrorReq: o.MinRateError,
+		action:          o.Action,
 	}
 }

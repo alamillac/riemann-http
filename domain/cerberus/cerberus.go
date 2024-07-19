@@ -1,46 +1,92 @@
 package cerberus
 
-import (
-	riemann "github.com/riemann/riemann-go-client"
+type RuleType int
+
+const (
+	IpRule RuleType = iota
+	AsnRule
 )
 
+type WindowOpts struct {
+	Size uint16
+	Tick uint16
+}
+
+type TriggerOpts interface {
+	NewTrigger() Trigger
+}
+
+type RuleOpts struct {
+	Name    string
+	Type    RuleType
+	Window  WindowOpts
+	Trigger TriggerOpts
+	Ignored []string
+}
+
+type Options struct {
+	Rules []RuleOpts
+}
+
+type Rule struct {
+	Type    RuleType
+	Window  *Window
+	Ignored []string
+}
+
 type Cerberus struct {
-	ipMetrics      *Memory
-	asnMetricsLow  *Memory
-	asnMetricsHigh *Memory
+	rules []*Rule
+}
+
+func contains(slice []string, val string) bool {
+	for _, item := range slice {
+		if item == val {
+			return true
+		}
+	}
+	return false
 }
 
 // Analyze is the function that will analyze the metrics and apply the rules
 func (c Cerberus) Analyze(ip string, asn string, isLogin bool, isUnauthorized bool) {
-	// Increment IP metrics
-	c.ipMetrics.Inc(ip, isLogin, isUnauthorized)
-
-	// Increment ASN metrics
-	if asn == "27725" {
-		// Ignore Cuba ASN
-		return
+	for _, rule := range c.rules {
+		if rule.Type == IpRule {
+			if contains(rule.Ignored, ip) {
+				// If the IP is ignored, we skip the rule
+				continue
+			}
+			// Increment IP metrics
+			rule.Window.Inc(ip, isLogin, isUnauthorized)
+		} else {
+			if contains(rule.Ignored, asn) {
+				// If the ASN is ignored, we skip the rule
+				continue
+			}
+			// Increment ASN metrics
+			rule.Window.Inc(asn, isLogin, isUnauthorized)
+		}
 	}
-
-	c.asnMetricsLow.Inc(asn, isLogin, isUnauthorized)
-	c.asnMetricsHigh.Inc(asn, isLogin, isUnauthorized)
 }
 
 func (c Cerberus) Start() {
-	c.ipMetrics.Start()
-	c.asnMetricsLow.Start()
-	c.asnMetricsHigh.Start()
+	// Start the metrics
+	for _, rule := range c.rules {
+		rule.Window.Start()
+	}
 }
 
-func NewCerberus(rc *riemann.TCPClient) *Cerberus {
-	ipRule := NewLoginRule(15, 0.9, 0.9, rc)                    // Min 15 requests, 90% of login requests, 90% of login errors
-	ipMetrics := NewMemory("ip", 5, 600, ipRule)                // 10 minutes window (600 seconds) with tick every 5 seconds
-	asnRule := NewTotalRule(30, 0.8, rc)                        // Min 30 requests, 80% of errors
-	asnMetricsHighFreq := NewMemory("asn-high", 1, 30, asnRule) // 30 seconds window with tick every 1 second
-	asnMetricsLowFreq := NewMemory("asn-low", 5, 300, asnRule)  // 5 minutes window (300 seconds) with tick every 5 seconds
-
-	return &Cerberus{
-		ipMetrics:      ipMetrics,
-		asnMetricsLow:  asnMetricsLowFreq,
-		asnMetricsHigh: asnMetricsHighFreq,
+func NewCerberus(options *Options) *Cerberus {
+	rules := make([]*Rule, len(options.Rules))
+	for _, ruleOption := range options.Rules {
+		trigger := ruleOption.Trigger.NewTrigger()
+		window := NewWindow(ruleOption.Name, ruleOption.Window.Tick, ruleOption.Window.Size, trigger)
+		rule := &Rule{
+			Type:    ruleOption.Type,
+			Window:  window,
+			Ignored: ruleOption.Ignored,
+		}
+		rules = append(rules, rule)
 	}
+
+	return &Cerberus{rules: rules}
 }
