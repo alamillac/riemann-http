@@ -1,4 +1,4 @@
-package apiserver
+package server
 
 import (
   "fmt"
@@ -12,10 +12,15 @@ import (
   "github.com/go-chi/chi/v5/middleware"
   "github.com/go-chi/render"
 
-  "riemannhttp/domain/metric"
-  "riemannhttp/domain/asn"
-  "riemannhttp/domain/cerberus"
+  "github.com/alamillac/riemann-http/internal/metric"
+  "github.com/alamillac/riemann-http/internal/asn"
+  "github.com/alamillac/riemann-http/internal/cerberus"
 )
+
+type ApiConfig interface {
+  GetApiCredential() map[string]string
+  GetApiPort() int
+}
 
 type Server struct {
   app *chi.Mux

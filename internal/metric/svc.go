@@ -3,7 +3,7 @@ package metric
 import (
 	"fmt"
 	"log"
-	"riemannhttp/domain/cerberus"
+	"github.com/alamillac/riemann-http/internal/cerberus"
 	"time"
 
 	riemann "github.com/riemann/riemann-go-client"

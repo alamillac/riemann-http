@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 	"os"
-	"riemannhttp/apiserver"
-	"riemannhttp/domain/cerberus"
-	config "riemannhttp/internal"
+	"github.com/alamillac/riemann-http/infrastructure/server"
+	"github.com/alamillac/riemann-http/internal/cerberus"
+	"github.com/alamillac/riemann-http/config"
 
 	"context"
 	"github.com/go-redis/redis/v8"
@@ -90,7 +90,7 @@ func main() {
 	}
 
 	guardian := createCerberus(rc, cfg)
-	server := apiserver.NewServer(rc, guardian, redisClient, cfg)
+	server := server.NewServer(rc, guardian, redisClient, cfg)
 	if err := server.Run(); err != nil {
 		log.Fatalf("Error starting http server <%s>", err)
 		os.Exit(1)
